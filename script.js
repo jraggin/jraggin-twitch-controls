@@ -1,3 +1,13 @@
+
+// ============================================
+// JRAGGIN TWITCH CONTROLS
+// SCENE CONTROL SYSTEM
+// ============================================
+
+// -----------------------------
+// FIREBASE CONFIGURATION
+// -----------------------------
+
 const firebaseConfig = {
   apiKey: "AIzaSyDFC_FzA8r_TD03grYSGGfFubsE90xdU2s",
   authDomain: "twitch-knobs.firebaseapp.com",
@@ -6,121 +16,234 @@ const firebaseConfig = {
   storageBucket: "twitch-knobs.firebasestorage.app",
   messagingSenderId: "172717259045",
   appId: "1:172717259045:web:1f1c901facb66410fc82cc"
-
 };
 
 firebase.initializeApp(firebaseConfig);
+
 const db = firebase.database();
 
-console.log("Sliders connected");
+console.log("Jraggin Twitch Controls connected");
 
 // -----------------------------
-// CHANNELS
+// SCENE CONFIGURATION
 // -----------------------------
-const channels = ["vox", "bass", "guitar", "snare"];
 
-// -----------------------------
-// CONTROLS
-// -----------------------------
-const controls = [
-  { key: "r", label: "Red", min: 0, max: 1, step: 0.001 },
-  { key: "g", label: "Green", min: 0, max: 1, step: 0.001 },
-  { key: "b", label: "Blue", min: 0, max: 1, step: 0.001 },
-  { key: "x", label: "X Tweak", min: 0, max: 1, step: 0.001 },
-  { key: "y", label: "Y Tweak", min: 0, max: 1, step: 0.001 },
-  { key: "div", label: "Divisions", min: 2, max: 10, step: 1 }
+const scenes = [
+  { id: 1, name: "Pub of Many Paths", note: 48 },
+  { id: 2, name: "Kreg on a Cliff", note: 49 },
+  { id: 3, name: "Late Nite Jraggin", note: 50 },
+  { id: 4, name: "Mouth of the Beast", note: 51 },
+  { id: 5, name: "Field", note: 52 },
+  { id: 6, name: "The Nothing", note: 53 }
 ];
+
+// -----------------------------
+// SETTINGS
+// -----------------------------
+
+const COOLDOWN_MS = 10000;
+
+const COMMAND_PATH = "sceneControls/command";
+const COOLDOWN_PATH = "sceneControls/cooldown";
+
+// -----------------------------
+// HTML ELEMENTS
+// -----------------------------
 
 const app = document.getElementById("app");
 
+const sceneSection = document.createElement("section");
+sceneSection.id = "scene-section";
+
+const heading = document.createElement("h2");
+heading.textContent = "CHOOSE YOUR BACKGROUND";
+
+const description = document.createElement("p");
+description.className = "scene-description";
+description.textContent = "Choose the visual world for the stream.";
+
+const buttonGrid = document.createElement("div");
+buttonGrid.id = "scene-buttons";
+
+const status = document.createElement("div");
+status.id = "scene-status";
+status.textContent = "Connecting...";
+
+const cooldownDisplay = document.createElement("div");
+cooldownDisplay.id = "cooldown-display";
+
+sceneSection.appendChild(heading);
+sceneSection.appendChild(description);
+sceneSection.appendChild(buttonGrid);
+sceneSection.appendChild(status);
+sceneSection.appendChild(cooldownDisplay);
+
+app.appendChild(sceneSection);
+
 // -----------------------------
-// FORMAT
+// CREATE SCENE BUTTONS
 // -----------------------------
-function format(control, value) {
-  if (control.step === 1) return Math.round(value);
-  return Number(value).toFixed(3);
+
+const buttons = {};
+
+scenes.forEach(scene => {
+
+  const button = document.createElement("button");
+
+  button.className = "scene-button";
+  button.textContent = scene.name;
+
+  button.addEventListener("click", () => {
+    selectScene(scene);
+  });
+
+  buttonGrid.appendChild(button);
+
+  buttons[scene.id] = button;
+
+});
+
+// -----------------------------
+// GLOBAL COOLDOWN DISPLAY
+// -----------------------------
+
+let cooldownUntil = 0;
+
+function updateCooldownDisplay() {
+
+  const remaining = cooldownUntil - Date.now();
+
+  if (remaining > 0) {
+
+    const seconds = Math.ceil(remaining / 1000);
+
+    cooldownDisplay.textContent =
+      `Please wait ${seconds} seconds before another scene change.`;
+
+    Object.values(buttons).forEach(button => {
+      button.disabled = true;
+    });
+
+  } else {
+
+    cooldownDisplay.textContent = "";
+
+    Object.values(buttons).forEach(button => {
+      button.disabled = false;
+    });
+
+  }
+
 }
 
 // -----------------------------
-// SLIDER CREATION
+// LISTEN FOR GLOBAL COOLDOWN
 // -----------------------------
-function createSlider(channel, control) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "control";
 
-  const id = `${channel}-${control.key}`;
-  const path = `${channel}/${control.key}`;
+db.ref(COOLDOWN_PATH).on("value", snapshot => {
 
-  const defaultValue = control.step === 1 ? 2 : 0;
+  const data = snapshot.val();
 
-  wrapper.innerHTML = `
-    <div class="label-row">
-      <span>${control.label}</span>
-      <span class="value" id="${id}-val">0.000</span>
-    </div>
+  cooldownUntil = data && data.until
+    ? Number(data.until)
+    : 0;
 
-    <input
-      type="range"
-      id="${id}"
-      min="${control.min}"
-      max="${control.max}"
-      step="${control.step}"
-      value="${defaultValue}"
-    />
-  `;
+  updateCooldownDisplay();
 
-  const slider = wrapper.querySelector("input");
-  const display = wrapper.querySelector(".value");
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer);
+  }
 
-  // -----------------------------
-  // SEND TO FIREBASE (FORCED FLOAT)
-  // -----------------------------
-  slider.addEventListener("input", () => {
-    const value = parseFloat(slider.value);
+  cooldownTimer = setInterval(updateCooldownDisplay, 250);
 
-    display.textContent = format(control, value);
+});
 
-    db.ref(path).set(value);
-  });
+let cooldownTimer = null;
 
-  // -----------------------------
-  // RECEIVE FROM FIREBASE
-  // -----------------------------
-  db.ref(path).on("value", (snap) => {
-    const val = snap.val();
-    if (val === null || val === undefined) return;
+// -----------------------------
+// SCENE SELECTION
+// -----------------------------
 
-    const value = parseFloat(val);
+async function selectScene(scene) {
 
-    if (!isNaN(value)) {
-      slider.value = value;
-      display.textContent = format(control, value);
+  const now = Date.now();
+
+  status.textContent = "Requesting scene change...";
+
+  // Reserve the shared cooldown atomically.
+  // Only one viewer can reserve it at a time.
+
+  try {
+
+    const cooldownRef = db.ref(COOLDOWN_PATH);
+
+    const result = await cooldownRef.transaction(current => {
+
+      const currentUntil = current && current.until
+        ? Number(current.until)
+        : 0;
+
+      if (currentUntil > now) {
+        return;
+      }
+
+      return {
+        until: now + COOLDOWN_MS,
+        scene: scene.id
+      };
+
+    });
+
+    if (!result.committed) {
+
+      status.textContent = "Someone just changed the scene!";
+
+      return;
+
     }
-  });
 
-  return wrapper;
+    cooldownUntil = Number(result.snapshot.val().until);
+
+    updateCooldownDisplay();
+
+    // -----------------------------
+    // SEND SCENE COMMAND
+    // -----------------------------
+
+    const command = {
+      scene: scene.id,
+      name: scene.name,
+      note: scene.note,
+      requestId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      timestamp: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    await db.ref(COMMAND_PATH).set(command);
+
+    status.textContent = `Selected: ${scene.name}`;
+
+    console.log("Scene command sent:", command);
+
+  } catch (error) {
+
+    console.error("Scene selection error:", error);
+
+    status.textContent = "Connection error. Please try again.";
+
+  }
+
 }
 
 // -----------------------------
-// PANEL CREATION
+// INITIAL STATUS
 // -----------------------------
-function createPanel(channel) {
-  const panel = document.createElement("div");
-  panel.className = "panel";
 
-  const title = document.createElement("h2");
-  title.textContent = channel.toUpperCase();
+db.ref(".info/connected").on("value", snapshot => {
 
-  panel.appendChild(title);
+  if (snapshot.val() === true) {
+    status.textContent = "Connected — choose a background!";
+  } else {
+    status.textContent = "Connecting to Firebase...";
+  }
 
-  controls.forEach(control => {
-    panel.appendChild(createSlider(channel, control));
-  });
-
-  app.appendChild(panel);
-}
-
-// -----------------------------
-// INIT
-// -----------------------------
-channels.forEach(createPanel);
+});
