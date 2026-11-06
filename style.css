@@ -1,5 +1,16 @@
+
+/* ============================================
+   JRAGGIN TWITCH CONTROLS
+   WEBSITE STYLING
+============================================ */
+
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
+    padding: 0;
     font-family: Arial, sans-serif;
     background: #111;
     color: #eee;
@@ -7,34 +18,129 @@ body {
 
 h1 {
     text-align: center;
-    padding: 20px;
+    padding: 25px 15px;
+    margin: 0;
+    color: #00ffcc;
+    font-size: 28px;
 }
+
+/* MAIN APP */
 
 #app {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
     padding: 20px;
 }
 
-.panel {
+/* SCENE SECTION */
+
+#scene-section {
     background: #1c1c1c;
-    padding: 15px;
-    border-radius: 10px;
+    padding: 25px;
+    border-radius: 12px;
     border: 1px solid #333;
+    text-align: center;
 }
 
-.panel h2 {
+#scene-section h2 {
     margin-top: 0;
     color: #00ffcc;
+    font-size: 23px;
 }
 
-label {
-    display: block;
-    margin-top: 10px;
+.scene-description {
+    color: #aaa;
     font-size: 14px;
+    margin-bottom: 25px;
 }
 
-input[type="range"] {
-    width: 100%;
+/* SCENE BUTTON GRID */
+
+#scene-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+/* SCENE BUTTONS */
+
+.scene-button {
+    min-height: 75px;
+    padding: 15px;
+    border: 1px solid #00ffcc;
+    border-radius: 10px;
+    background: #292929;
+    color: #eee;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+
+.scene-button:hover:not(:disabled) {
+    background: #00ffcc;
+    color: #111;
+    transform: scale(1.02);
+}
+
+.scene-button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* DISABLED BUTTONS */
+
+.scene-button:disabled {
+    background: #181818;
+    border-color: #444;
+    color: #666;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* STATUS */
+
+#scene-status {
+    margin-top: 25px;
+    color: #00ffcc;
+    font-size: 15px;
+    font-weight: bold;
+    min-height: 20px;
+}
+
+/* COOLDOWN */
+
+#cooldown-display {
+    margin-top: 12px;
+    color: #ffcc66;
+    font-size: 14px;
+    min-height: 20px;
+}
+
+/* MOBILE LAYOUT */
+
+@media (max-width: 600px) {
+
+    h1 {
+        font-size: 23px;
+    }
+
+    #app {
+        padding: 12px;
+    }
+
+    #scene-section {
+        padding: 18px;
+    }
+
+    #scene-buttons {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .scene-button {
+        min-height: 65px;
+        font-size: 15px;
+    }
+
 }
